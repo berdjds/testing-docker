@@ -1,28 +1,47 @@
-# 1. Use official Node image
-FROM node:18
+# Build stage
+FROM node:18 AS development
 
-# 2. Set working directory
+# Set working directory
 WORKDIR /app
 
-# 3. Copy package files
+# Copy package files
 COPY package*.json ./
 
-# 4. Install dependencies with legacy peer deps (for compatibility)
-RUN npm install --legacy-peer-deps
+# Install dependencies
+RUN npm install
 
-# 5. Copy the rest of the app
+# Copy frontend files
 COPY . .
 
-# 6. Set production environment
-ENV NODE_ENV=production
-ENV NEXT_TELEMETRY_DISABLED=1
+# Build stage
+FROM node:18 AS builder
 
-# 7. Build the Next.js app
+WORKDIR /app
+
+# Copy from development stage
+COPY --from=development /app ./
+
+# Build the application
 RUN npm run build
 
-# 8. Clean dev dependencies
-RUN npm prune --production
+# Production stage
+FROM node:18-slim AS production
 
-# 9. Expose the port and start the app
+WORKDIR /app
+
+# Copy package files
+COPY package*.json ./
+
+# Install only production dependencies
+RUN npm ci --only=production
+
+# Copy built files
+COPY --from=builder /app/.next ./.next
+COPY --from=builder /app/public ./public
+COPY --from=builder /app/next.config.js ./
+
+# Expose frontend port
 EXPOSE 3000
+
+# Start the server
 CMD ["npm", "start"]
