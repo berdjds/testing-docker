@@ -138,151 +138,246 @@ testing-docker/
 
 ## Docker Configuration
 
-### Frontend Dockerfile
+### Docker Compose Files Comparison
 
-The frontend Dockerfile uses a multi-stage build process:
+The application includes multiple Docker Compose files for different deployment scenarios. Here is a detailed comparison of each file and instructions on how to use them:
 
-```dockerfile
-# Build stage
-FROM node:18 AS builder
+#### 1. docker-compose.simple.yml
 
-# Set working directory
-WORKDIR /app
+**Purpose**: Development & simple deployment
 
-# Copy package files
-COPY package.json ./
+**Key Features**:
+- Builds images from local Dockerfiles
+- Uses MySQL 5.7 (more stable with Prisma)
+- Simple configuration with hardcoded values
+- No health checks
+- Basic networking
 
-# Install dependencies
-RUN npm install
+**How to use**:
+```bash
+# Start services
+docker-compose -f docker-compose.simple.yml up -d --build
 
-# Copy frontend files
-COPY . .
-
-# Build the application
-RUN npm run build
-
-# Production image
-FROM node:18-slim
-
-WORKDIR /app
-
-# Environment variables
-ENV NODE_ENV=production
-ENV NEXT_PUBLIC_API_URL=/api
-
-# Copy necessary files from builder
-COPY --from=builder /app/.next/standalone ./
-COPY --from=builder /app/public ./public
-COPY --from=builder /app/.next/static ./.next/static
-
-# Expose frontend port
-EXPOSE 3000
-
-# Start the server correctly for standalone mode
-CMD ["node", "server.js"]
+# Stop services
+docker-compose -f docker-compose.simple.yml down
 ```
 
-### Backend Dockerfile
+#### 2. docker-compose.yml (Default)
 
-```dockerfile
-FROM node:18
+**Purpose**: Development with environment variables
 
-WORKDIR /app
+**Key Features**:
+- Similar to simple but uses environment variables
+- More flexibility with configuration
+- Uses MySQL 5.7
+- Creates volumes for development (hot reloading)
 
-# Copy package.json and install dependencies
-COPY package.json ./
-RUN npm install
+**How to use**:
+1. Create a `.env` file with required variables:
+```bash
+# Create .env file
+cat > .env << EOF
+# MySQL Configuration
+MYSQL_ROOT_PASSWORD=mysecretpassword
+MYSQL_DATABASE=myapp
+MYSQL_USER=appuser
+MYSQL_PASSWORD=apppassword
 
-# Copy application code
-COPY . .
-
-# Generate Prisma client
-RUN npx prisma generate
-
-# Expose backend port
-EXPOSE 5000
-
-# Start the server
-CMD ["node", "app.js"]
+# Node Environment
+NODE_ENV=production
+EOF
 ```
 
-### Docker Compose Configuration
+2. Run Docker Compose:
+```bash
+# Start services (no need for -f flag as this is the default)
+docker-compose up -d --build
 
-The `docker-compose.simple.yml` file orchestrates all the services:
-
-```yaml
-version: '3.8'
-
-services:
-  mysql:
-    image: mysql:5.7
-    container_name: mysql
-    restart: unless-stopped
-    environment:
-      MYSQL_ROOT_PASSWORD: mysecretpassword
-      MYSQL_DATABASE: myapp
-      MYSQL_USER: appuser
-      MYSQL_PASSWORD: apppassword
-    ports:
-      - "3306:3306"
-    volumes:
-      - mysql-data:/var/lib/mysql
-    command: --default-authentication-plugin=mysql_native_password
-    networks:
-      - app-network
-
-  backend:
-    build:
-      context: ./backend
-    container_name: backend
-    restart: unless-stopped
-    ports:
-      - "5000:5000"
-    environment:
-      NODE_ENV: production
-      DATABASE_URL: mysql://appuser:apppassword@mysql:3306/myapp
-    depends_on:
-      - mysql
-    networks:
-      - app-network
-
-  frontend:
-    build:
-      context: ./frontend
-    container_name: frontend
-    restart: unless-stopped
-    ports:
-      - "3000:3000"
-    environment:
-      NODE_ENV: production
-      NEXT_PUBLIC_API_URL: /api
-    depends_on:
-      - backend
-    networks:
-      - app-network
-
-  nginx:
-    image: nginx:alpine
-    container_name: nginx
-    restart: unless-stopped
-    ports:
-      - "80:80"
-    volumes:
-      - ./nginx/conf:/etc/nginx/conf.d
-    depends_on:
-      - frontend
-      - backend
-    networks:
-      - app-network
-
-networks:
-  app-network:
-    driver: bridge
-
-volumes:
-  mysql-data:
-    driver: local
+# Stop services
+docker-compose down
 ```
+
+#### 3. docker-compose.prod.yml (Production)
+
+**Purpose**: Production deployment with pre-built images
+
+**Key Features**:
+- Uses pre-built images from GitHub Container Registry
+- MySQL 8 (newer version)
+- Has health checks for all services
+- Includes SSL configuration for Nginx
+- More robust environment variable configuration
+- Configured for high availability
+
+**How to use**:
+1. Create a comprehensive `.env` file for production:
+```bash
+cat > .env << EOF
+# MySQL Configuration
+MYSQL_ROOT_PASSWORD=strong-production-password
+MYSQL_DATABASE=myapp
+MYSQL_USER=appuser
+MYSQL_PASSWORD=secure-app-password
+
+# JWT Secret for authentication
+JWT_SECRET=your-very-secure-jwt-secret
+
+# URLs
+FRONTEND_URL=https://yourdomain.com
+API_URL=https://yourdomain.com/api
+
+# Node Environment
+NODE_ENV=production
+EOF
+```
+
+2. Run with the production file:
+```bash
+docker-compose -f docker-compose.prod.yml up -d
+
+# Stop services
+docker-compose -f docker-compose.prod.yml down
+```
+
+### Key Differences Between Docker Compose Files
+
+1. **Image Sources**:
+   - Simple/Default: Build from local Dockerfiles
+   - Production: Pull pre-built images from GitHub Container Registry
+
+2. **Database Version**:
+   - Simple/Default: MySQL 5.7
+   - Production: MySQL 8
+
+3. **SSL/HTTPS**:
+   - Simple/Default: HTTP only
+   - Production: Configured for HTTPS with SSL volumes
+
+4. **Health Checks**:
+   - Simple/Default: None
+   - Production: Health checks for all services
+
+### Recommendation for Different Environments
+
+1. **For Local Development**: Use `docker-compose.yml` (default)
+2. **For Testing/Staging**: Use `docker-compose.simple.yml`
+3. **For Production**: Use `docker-compose.prod.yml` after setting up proper environment variables and SSL certificates
+
+### Production Setup with docker-compose.prod.yml
+
+To properly set up the production environment using `docker-compose.prod.yml`:
+
+1. **SSL Certificate Setup**:
+   ```bash
+   # Create directories for SSL certificates
+   mkdir -p nginx/ssl
+
+   # Generate self-signed certificates (for testing)
+   # For production, use Let's Encrypt or another trusted certificate provider
+   openssl req -x509 -nodes -days 365 -newkey rsa:2048 \
+     -keyout nginx/ssl/private.key \
+     -out nginx/ssl/certificate.crt
+   ```
+
+2. **Configure Nginx for HTTPS**:
+   ```bash
+   # Create or edit the Nginx configuration
+   cat > nginx/conf/default.conf << 'EOF'
+   server {
+       listen 80;
+       server_name yourdomain.com;
+       return 301 https://$host$request_uri;
+   }
+
+   server {
+       listen 443 ssl;
+       server_name yourdomain.com;
+
+       ssl_certificate /etc/nginx/ssl/certificate.crt;
+       ssl_certificate_key /etc/nginx/ssl/private.key;
+       ssl_protocols TLSv1.2 TLSv1.3;
+       ssl_prefer_server_ciphers on;
+
+       # Frontend
+       location / {
+           proxy_pass http://frontend:3000;
+           proxy_http_version 1.1;
+           proxy_set_header Upgrade $http_upgrade;
+           proxy_set_header Connection 'upgrade';
+           proxy_set_header Host $host;
+           proxy_cache_bypass $http_upgrade;
+       }
+
+       # Backend API
+       location /api/ {
+           proxy_pass http://backend:5000/;
+           proxy_http_version 1.1;
+           proxy_set_header Upgrade $http_upgrade;
+           proxy_set_header Connection 'upgrade';
+           proxy_set_header Host $host;
+           proxy_cache_bypass $http_upgrade;
+       }
+   }
+   EOF
+   ```
+
+3. **Set Up GitHub Actions for Continuous Deployment**:
+   Create a `.github/workflows/docker-publish.yml` file:
+   ```yaml
+   name: Docker Build and Publish
+
+   on:
+     push:
+       branches: [ main ]
+     workflow_dispatch:
+
+   jobs:
+     build-and-push:
+       runs-on: ubuntu-latest
+       steps:
+         - name: Checkout code
+           uses: actions/checkout@v3
+
+         - name: Login to GitHub Container Registry
+           uses: docker/login-action@v2
+           with:
+             registry: ghcr.io
+             username: ${{ github.actor }}
+             password: ${{ secrets.GITHUB_TOKEN }}
+
+         - name: Build and push backend
+           uses: docker/build-push-action@v4
+           with:
+             context: ./backend
+             push: true
+             tags: ghcr.io/berdjds/testing-docker-backend:latest
+
+         - name: Build and push frontend
+           uses: docker/build-push-action@v4
+           with:
+             context: ./frontend
+             push: true
+             tags: ghcr.io/berdjds/testing-docker-frontend:latest
+   ```
+
+4. **Deploy to Production Server**:
+   ```bash
+   # SSH into your production server
+   ssh user@your-production-server
+   
+   # Clone the repository (if not already done)
+   git clone https://github.com/berdjds/testing-docker.git
+   cd testing-docker
+   
+   # Create the .env file with production values
+   # (Use a secure method to transfer sensitive information)
+   
+   # Deploy with the production configuration
+   docker-compose -f docker-compose.prod.yml pull
+   docker-compose -f docker-compose.prod.yml up -d
+   ```
+
+Remember to replace `yourdomain.com` with your actual domain name in all configurations.
 
 ## Development Guide
 
