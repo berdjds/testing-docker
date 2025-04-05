@@ -20,6 +20,9 @@ ENV NEXT_TELEMETRY_DISABLED=1
 # 7. Build the Next.js app
 RUN npm run build
 
-# 8. Expose the port and start the app
+# 8. Clean dev dependencies
+RUN npm prune --production
+
+# 9. Expose the port and start the app
 EXPOSE 3000
 CMD ["npm", "start"]
