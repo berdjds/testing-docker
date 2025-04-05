@@ -4,47 +4,79 @@ services:
   mysql:
     image: mysql:8
     container_name: mysql
-    restart: unless-stopped
+    ports:
+      - "3306:3306"
     environment:
-      MYSQL_ROOT_PASSWORD: your_root_password
-      MYSQL_DATABASE: testdb
-      MYSQL_USER: testuser
-      MYSQL_PASSWORD: testpass
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+      MYSQL_DATABASE: ${MYSQL_DATABASE}
+      MYSQL_USER: ${MYSQL_USER}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD}
     volumes:
       - mysql-data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+    restart: unless-stopped
     networks:
       - app-network
 
   backend:
-    image: ghcr.io/berdjds/testing-docker-backend:latest
+    build:
+      context: ./backend
+      target: ${NODE_ENV:-production}
     container_name: backend
-    restart: unless-stopped
+    ports:
+      - "5000:5000"
     environment:
-      NODE_ENV: production
-      DATABASE_URL: mysql://testuser:testpass@mysql:3306/testdb
-      JWT_SECRET: your_jwt_secret
-      FRONTEND_URL: http://localhost
+      NODE_ENV: ${NODE_ENV:-production}
+      DATABASE_URL: mysql://${MYSQL_USER}:${MYSQL_PASSWORD}@mysql:3306/${MYSQL_DATABASE}
+      JWT_SECRET: ${JWT_SECRET}
+      FRONTEND_URL: http://frontend:3000
     depends_on:
-      - mysql
+      mysql:
+        condition: service_healthy
+    volumes:
+      - ./backend:/app
+      - /app/node_modules
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    restart: unless-stopped
     networks:
       - app-network
 
   frontend:
-    image: ghcr.io/berdjds/testing-docker-frontend:latest
+    build:
+      context: ./frontend
+      target: ${NODE_ENV:-production}
     container_name: frontend
-    restart: unless-stopped
+    ports:
+      - "3000:3000"
     environment:
-      NODE_ENV: production
-      NEXT_PUBLIC_API_URL: http://localhost/api
+      NODE_ENV: ${NODE_ENV:-production}
+      NEXT_PUBLIC_API_URL: /api
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+      - /app/.next
     depends_on:
       - backend
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    restart: unless-stopped
     networks:
       - app-network
 
   nginx:
     image: nginx:alpine
     container_name: nginx
-    restart: unless-stopped
     ports:
       - "80:80"
     volumes:
