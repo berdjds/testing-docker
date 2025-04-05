@@ -4,16 +4,22 @@ FROM node:18
 # 2. Set working directory
 WORKDIR /app
 
-# 3. Copy dependencies and install
+# 3. Copy package files
 COPY package*.json ./
-RUN npm install
 
-# 4. Copy the rest of the app
+# 4. Install dependencies with legacy peer deps (for compatibility)
+RUN npm install --legacy-peer-deps
+
+# 5. Copy the rest of the app
 COPY . .
 
-# 5. Build the Next.js app
+# 6. Set production environment
+ENV NODE_ENV=production
+ENV NEXT_TELEMETRY_DISABLED=1
+
+# 7. Build the Next.js app
 RUN npm run build
 
-# 6. Expose the port and start the app
+# 8. Expose the port and start the app
 EXPOSE 3000
 CMD ["npm", "start"]
