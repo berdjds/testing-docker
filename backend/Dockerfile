@@ -1,11 +1,11 @@
 # Build stage
-FROM node:18 AS development
+FROM node:18-slim
 
 # Set working directory
 WORKDIR /app
 
 # Copy package files
-COPY package*.json ./
+COPY package.json ./
 
 # Install dependencies
 RUN npm install
@@ -13,23 +13,8 @@ RUN npm install
 # Copy backend files
 COPY . .
 
-# Production stage
-FROM node:18-slim AS production
-
-WORKDIR /app
-
-# Copy package files
-COPY package*.json ./
-
-# Install only production dependencies
-RUN npm install --omit=dev
-
-# Copy backend files
-COPY --from=development /app/app.js ./
-COPY --from=development /app/routes ./routes
-
 # Expose backend port
 EXPOSE 5000
 
 # Start the server
-CMD ["npm", "start"]
+CMD ["node", "app.js"]
