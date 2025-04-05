@@ -1,3 +1,5 @@
+/* This is a CSS file that uses Tailwind CSS directives */
+/* These directives are processed by the Tailwind CSS build process */
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -16,8 +18,63 @@
   }
 }
 
+/* Default styling from Next.js */
 body {
   background: var(--background);
   color: var(--foreground);
   font-family: var(--font-sans), Arial, Helvetica, sans-serif;
+}
+
+/* Custom Colors */
+:root {
+  --dark-blue: #081b33;
+  --caramel: #c68b59;
+  --caramel-light: #e0b088;
+  --caramel-dark: #9c6b43;
+  --contrast-text: #f0f4f8;
+  --secondary-text: #d0d9e2;
+}
+
+/* Caramel Button Styles */
+.btn-caramel {
+  background-color: var(--caramel);
+  color: var(--contrast-text);
+  border: none;
+  transition: all 0.3s ease;
+}
+
+.btn-caramel:hover {
+  background-color: var(--caramel-dark);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(198, 139, 89, 0.3);
+}
+
+.btn-caramel:active {
+  transform: translateY(0);
+}
+
+/* Card Hover Effects */
+.product-card {
+  transition: all 0.3s ease;
+  border: 2px solid transparent;
+}
+
+.product-card:hover {
+  border-color: var(--caramel);
+  transform: translateY(-5px);
+}
+
+/* Header Gradient */
+.header-gradient {
+  background: linear-gradient(135deg, var(--caramel) 0%, var(--caramel-dark) 100%);
+}
+
+/* Dark Background */
+.dark-blue-bg {
+  background-color: var(--dark-blue);
+}
+
+/* Caramel Accent Border */
+.caramel-border {
+  border-color: var(--caramel);
 }
