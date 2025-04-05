@@ -1,5 +1,15 @@
 const express = require('express');
 const cors = require('cors');
+const { PrismaClient } = require('@prisma/client');
+
+// Initialize Prisma with error handling
+let prisma;
+try {
+  prisma = new PrismaClient();
+  console.log('Prisma client initialized successfully');
+} catch (error) {
+  console.error('Failed to initialize Prisma client:', error);
+}
 
 const app = express();
 const port = process.env.PORT || 5000;
@@ -7,7 +17,7 @@ const port = process.env.PORT || 5000;
 app.use(cors());
 app.use(express.json());
 
-// Mock data
+// Mock data as fallback if database connection fails
 const mockProducts = [
   { 
     id: 1, 
@@ -57,30 +67,81 @@ app.get('/', (req, res) => {
 });
 
 // Health check endpoint
-app.get('/health', (req, res) => {
-  res.json({ 
-    status: 'healthy', 
-    version: '1.0.0',
-    mode: 'mock data',
-    timestamp: new Date().toISOString()
-  });
+app.get('/health', async (req, res) => {
+  try {
+    if (!prisma) {
+      throw new Error('Prisma client not initialized');
+    }
+    
+    // Test database connection
+    await prisma.$queryRaw`SELECT 1`;
+    res.json({ 
+      status: 'healthy', 
+      database: 'connected',
+      version: '1.0.0',
+      timestamp: new Date().toISOString()
+    });
+  } catch (error) {
+    console.error('Database health check failed:', error);
+    res.status(200).json({ 
+      status: 'healthy', 
+      database: 'disconnected',
+      mode: 'fallback to mock data',
+      error: error.message,
+      timestamp: new Date().toISOString()
+    });
+  }
 });
 
 // Get all products
-app.get('/products', (req, res) => {
-  res.json(mockProducts);
+app.get('/products', async (req, res) => {
+  try {
+    if (!prisma) {
+      throw new Error('Prisma client not initialized');
+    }
+    
+    // Try to get products from database
+    const products = await prisma.product.findMany();
+    console.log(`Successfully retrieved ${products.length} products from database`);
+    res.json(products);
+  } catch (error) {
+    console.error('Error fetching products from database:', error);
+    console.log('Falling back to mock data');
+    // Return mock data as fallback
+    res.json(mockProducts);
+  }
 });
 
 // Get a single product by ID
-app.get('/products/:id', (req, res) => {
+app.get('/products/:id', async (req, res) => {
   const { id } = req.params;
-  const product = mockProducts.find(p => p.id === parseInt(id));
-  
-  if (!product) {
-    return res.status(404).json({ error: 'Product not found' });
+  try {
+    if (!prisma) {
+      throw new Error('Prisma client not initialized');
+    }
+    
+    const product = await prisma.product.findUnique({
+      where: { id: parseInt(id) }
+    });
+    
+    if (!product) {
+      const mockProduct = mockProducts.find(p => p.id === parseInt(id));
+      if (mockProduct) {
+        return res.json(mockProduct);
+      }
+      return res.status(404).json({ error: 'Product not found' });
+    }
+    
+    res.json(product);
+  } catch (error) {
+    console.error(`Error fetching product ${id}:`, error);
+    // Try to find the product in mock data as fallback
+    const mockProduct = mockProducts.find(p => p.id === parseInt(id));
+    if (mockProduct) {
+      return res.json(mockProduct);
+    }
+    res.status(404).json({ error: 'Product not found' });
   }
-  
-  res.json(product);
 });
 
 // Get all users
