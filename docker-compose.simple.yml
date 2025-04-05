@@ -1,24 +1,6 @@
 version: '3.8'
 
 services:
-  mysql:
-    image: mysql:8
-    container_name: mysql
-    ports:
-      - "3306:3306"
-    environment:
-      MYSQL_ROOT_PASSWORD: mysecretpassword
-      MYSQL_DATABASE: myapp
-      MYSQL_USER: appuser
-      MYSQL_PASSWORD: apppassword
-      MYSQL_AUTHENTICATION_PLUGIN: mysql_native_password
-    volumes:
-      - mysql-data:/var/lib/mysql
-      - ./mysql/my.cnf:/etc/mysql/conf.d/my.cnf
-    restart: unless-stopped
-    networks:
-      - app-network
-
   backend:
     build:
       context: ./backend
@@ -27,9 +9,6 @@ services:
       - "5000:5000"
     environment:
       NODE_ENV: production
-      DATABASE_URL: mysql://appuser:apppassword@mysql:3306/myapp?schema=public
-    depends_on:
-      - mysql
     restart: unless-stopped
     networks:
       - app-network
