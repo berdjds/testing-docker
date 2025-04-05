@@ -368,144 +368,312 @@ npx prisma migrate dev --name <migration-name>
 
 ## Deployment Guide
 
-### Deployment to VPS
+### Step-by-Step Deployment to a VPS
 
-Follow these steps to deploy the application to a VPS:
+Follow these detailed instructions to deploy the application to a Virtual Private Server (VPS):
 
-1. **SSH into your VPS**
-   ```bash
-   ssh user@your-vps-ip
-   ```
+#### 1. Prerequisites on the VPS
 
-2. **Create a directory for the application**
-   ```bash
-   mkdir -p ~/myapps
-   cd ~/myapps
-   ```
-
-3. **Clone the repository**
-   ```bash
-   git clone https://github.com/berdjds/testing-docker.git
-   cd testing-docker
-   ```
-
-4. **Clean up any existing Docker resources (if needed)**
-   ```bash
-   docker stop $(docker ps -aq)
-   docker rm $(docker ps -aq)
-   docker network prune -f
-   docker volume prune -f
-   docker system prune -af --volumes
-   ```
-
-5. **Build and start the application**
-   ```bash
-   docker-compose -f docker-compose.simple.yml up -d --build
-   ```
-
-6. **Check the running containers**
-   ```bash
-   docker ps
-   ```
-
-7. **Check the logs if needed**
-   ```bash
-   docker-compose -f docker-compose.simple.yml logs -f
-   ```
-
-### Updates and Maintenance
-
-To update the application with new changes:
-
-1. **Pull the latest changes**
-   ```bash
-   cd ~/myapps/testing-docker
-   git pull
-   ```
-
-2. **Rebuild and restart the containers**
-   ```bash
-   docker-compose -f docker-compose.simple.yml up -d --build
-   ```
-
-## Troubleshooting
-
-### Common Issues
-
-1. **Database Connection Issues**
-   If the backend cannot connect to the database, check:
-   - Database container is running: `docker ps | grep mysql`
-   - Database credentials are correct in the environment variables
-   - Network connectivity between containers: `docker network inspect app-network`
-
-   Solution:
-   ```bash
-   # Restart the MySQL container
-   docker-compose -f docker-compose.simple.yml restart mysql
-   # Check logs
-   docker-compose -f docker-compose.simple.yml logs mysql
-   ```
-
-2. **Frontend Cannot Connect to Backend**
-   If the frontend cannot connect to the backend, check:
-   - Nginx configuration in `nginx/conf/default.conf`
-   - Backend container is running: `docker ps | grep backend`
-   - Network connectivity: `docker network inspect app-network`
-
-   Solution:
-   ```bash
-   # Check Nginx configuration
-   docker exec -it nginx nginx -t
-   # Restart Nginx
-   docker-compose -f docker-compose.simple.yml restart nginx
-   ```
-
-3. **Container Build Failures**
-   If container builds fail, check:
-   - Dockerfile syntax
-   - Dependencies are available
-   - Disk space is sufficient
-
-   Solution:
-   ```bash
-   # Check Docker build logs
-   docker-compose -f docker-compose.simple.yml build --no-cache <service>
-   ```
-
-## Maintenance
-
-### Backups
-
-To backup the database:
+Ensure your VPS has the following software installed:
 
 ```bash
-docker exec -it mysql /usr/bin/mysqldump -u root -p<root-password> myapp > backup.sql
+# Update system packages
+sudo apt update && sudo apt upgrade -y
+
+# Install Docker
+curl -fsSL https://get.docker.com -o get-docker.sh
+sudo sh get-docker.sh
+
+# Install Docker Compose
+sudo curl -L "https://github.com/docker/compose/releases/download/v2.15.1/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose
+sudo chmod +x /usr/local/bin/docker-compose
+
+# Verify installations
+docker --version
+docker-compose --version
+
+# Install Git
+sudo apt install git -y
 ```
 
-To restore from a backup:
+#### 2. Setting up GitHub Repository
+
+If you're starting from scratch:
 
 ```bash
-cat backup.sql | docker exec -i mysql /usr/bin/mysql -u root -p<root-password> myapp
+# Initialize a Git repository locally
+git init
+
+# Add your files
+git add .
+
+# Commit your changes
+git commit -m "Initial commit"
+
+# Create a GitHub repository through the GitHub website
+# Then add the remote repository
+git remote add origin https://github.com/yourusername/your-repo-name.git
+
+# Push your code to GitHub
+git push -u origin main
 ```
 
-### Monitoring
-
-To monitor container resources:
+If you're using an existing repository:
 
 ```bash
-docker stats
+# Clone the repository to your local machine
+git clone https://github.com/yourusername/your-repo-name.git
+cd your-repo-name
+
+# Make changes as needed
+# ...
+
+# Commit and push changes
+git add .
+git commit -m "Your commit message"
+git push
 ```
 
-To check container logs:
+#### 3. Deploying to VPS
+
+Follow these steps to deploy your application on the VPS:
+
+##### 3.1. SSH into Your VPS
 
 ```bash
+ssh username@your-vps-ip
+```
+
+##### 3.2. Create Application Directory Structure
+
+```bash
+# Create directory structure
+mkdir -p ~/myapps
+cd ~/myapps
+```
+
+##### 3.3. Clone the Repository
+
+```bash
+# Clone the repository
+git clone https://github.com/yourusername/your-repo-name.git
+cd your-repo-name
+```
+
+##### 3.4. Clean Up Any Existing Docker Resources (if needed)
+
+```bash
+# Stop running containers
+docker stop $(docker ps -aq)
+
+# Remove containers
+docker rm $(docker ps -aq)
+
+# Remove unused volumes
+docker volume prune -f
+
+# Remove unused networks
+docker network prune -f
+
+# Complete cleanup (use with caution, removes all unused resources)
+docker system prune -af --volumes
+```
+
+##### 3.5. Create Required Environment Variables
+
+```bash
+# Create or edit .env file
+cat > .env << EOF
+# MySQL Configuration
+MYSQL_ROOT_PASSWORD=mysecretpassword
+MYSQL_DATABASE=myapp
+MYSQL_USER=appuser
+MYSQL_PASSWORD=apppassword
+
+# Node Environment
+NODE_ENV=production
+EOF
+```
+
+##### 3.6. Build and Start Containers
+
+```bash
+# Build and start containers
+docker-compose -f docker-compose.simple.yml up -d --build
+```
+
+##### 3.7. Verify Deployment
+
+```bash
+# Check if containers are running
+docker ps
+
+# Check logs
 docker-compose -f docker-compose.simple.yml logs -f
 ```
 
-### Scaling
+##### 3.8. Access Your Application
 
-The application can be scaled horizontally by adjusting the Docker Compose configuration. For production environments, consider using orchestration tools like Kubernetes or Docker Swarm for more advanced scaling capabilities.
+Your application should now be accessible at:
 
----
+```
+http://your-vps-ip
+```
 
-This documentation provides a comprehensive guide to setting up, developing, deploying, and maintaining the full-stack application. For any additional questions or issues, please refer to the project repository or contact the development team.
+#### A4. Updating Your Application
+
+When you make changes to your application, follow these steps to update the deployment:
+
+##### 4.1. Local Development
+
+```bash
+# Make changes to your code locally
+# ...
+
+# Commit and push changes
+git add .
+git commit -m "Your update message"
+git push
+```
+
+##### 4.2. Updating on VPS
+
+```bash
+# SSH into your VPS
+ssh username@your-vps-ip
+
+# Navigate to your application directory
+cd ~/myapps/your-repo-name
+
+# Pull the latest changes
+git pull
+
+# Rebuild and restart containers
+docker-compose -f docker-compose.simple.yml up -d --build
+```
+
+#### 5. Continuous Integration with GitHub Actions (Optional)
+
+You can set up GitHub Actions to automatically deploy your application when changes are pushed to the main branch.
+
+##### 5.1. Create GitHub Actions Workflow File
+
+Create a file `.github/workflows/deploy.yml` in your repository:
+
+```yaml
+name: Deploy to VPS
+
+on:
+  push:
+    branches: [ main ]
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: SSH into VPS and deploy
+        uses: appleboy/ssh-action@master
+        with:
+          host: ${{ secrets.HOST }}
+          username: ${{ secrets.USERNAME }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          script: |
+            cd ~/myapps/your-repo-name
+            git pull
+            docker-compose -f docker-compose.simple.yml up -d --build
+```
+
+##### 5.2. Set Up GitHub Repository Secrets
+
+In your GitHub repository:
+1. Go to Settings > Secrets and variables > Actions
+2. Add the following secrets:
+   - `HOST`: Your VPS IP address
+   - `USERNAME`: Your VPS username
+   - `SSH_PRIVATE_KEY`: Your private SSH key
+
+##### 5.3. Test the Workflow
+
+Push a change to your main branch to trigger the workflow.
+
+#### 6. Managing SSL with Let's Encrypt (Optional)
+
+For secure HTTPS connections:
+
+##### 6.1. Install Certbot
+
+```bash
+sudo apt-get update
+sudo apt-get install certbot python3-certbot-nginx -y
+```
+
+##### 6.2. Obtain SSL Certificate
+
+```bash
+sudo certbot --nginx -d yourdomain.com
+```
+
+##### 6.3. Update Nginx Configuration
+
+Certbot should automatically update your Nginx configuration, but you can verify it:
+
+```bash
+sudo nano /etc/nginx/sites-available/default
+```
+
+Verify that HTTPS redirects are properly configured:
+
+```
+server {
+    listen 80;
+    server_name yourdomain.com;
+    return 301 https://$host$request_uri;
+}
+
+server {
+    listen 443 ssl;
+    server_name yourdomain.com;
+    
+    ssl_certificate /etc/letsencrypt/live/yourdomain.com/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/yourdomain.com/privkey.pem;
+    
+    # Other configurations...
+}
+```
+
+#### 7. Backup and Recovery Procedures
+
+##### 7.1. Backup Docker Volumes
+
+```bash
+# Create a backup directory
+mkdir -p ~/backups
+
+# Backup MySQL data
+docker run --rm --volumes-from mysql -v ~/backups:/backup alpine sh -c "cd /var/lib/mysql && tar cvf /backup/mysql-backup-$(date +%Y%m%d).tar ."
+```
+
+##### 7.2. Backup Configuration Files
+
+```bash
+# Backup your docker-compose and environment files
+cp docker-compose.simple.yml ~/backups/docker-compose.simple.yml.$(date +%Y%m%d)
+cp .env ~/backups/.env.$(date +%Y%m%d)
+```
+
+##### 7.3. Restore from Backup
+
+```bash
+# Stop containers
+docker-compose -f docker-compose.simple.yml down
+
+# Restore MySQL data
+docker run --rm --volumes-from mysql -v ~/backups:/backup alpine sh -c "cd /var/lib/mysql && tar xvf /backup/mysql-backup-YYYYMMDD.tar"
+
+# Start containers
+docker-compose -f docker-compose.simple.yml up -d
+```
+
+### Troubleshooting Deployment Issues
+
+{{ ... }}
