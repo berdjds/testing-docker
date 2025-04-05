@@ -36,6 +36,7 @@ services:
   frontend:
     build:
       context: ./frontend
+      dockerfile: Dockerfile
     container_name: frontend
     restart: unless-stopped
     ports:
@@ -45,6 +46,7 @@ services:
       NEXT_PUBLIC_API_URL: /api
     depends_on:
       - backend
+    volumes: []
     networks:
       - app-network
 
