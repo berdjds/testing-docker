@@ -4,14 +4,17 @@ FROM node:18
 # Set working directory inside the container
 WORKDIR /app
 
-# Copy backend files
-COPY . .
+# Copy package files
+COPY package*.json ./
 
 # Install dependencies
 RUN npm install
+
+# Copy backend files
+COPY . .
 
 # Expose backend port
 EXPOSE 5000
 
 # Start the server
-CMD ["node", "server.js"]
+CMD ["npm", "start"]
