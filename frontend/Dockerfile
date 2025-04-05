@@ -1,5 +1,5 @@
 # Build stage
-FROM node:18
+FROM node:18 AS builder
 
 # Set working directory
 WORKDIR /app
@@ -16,12 +16,22 @@ COPY . .
 # Build the application
 RUN npm run build
 
-# Expose frontend port
-EXPOSE 3000
+# Production image
+FROM node:18-slim
+
+WORKDIR /app
 
 # Environment variables
 ENV NODE_ENV=production
 ENV NEXT_PUBLIC_API_URL=/api
 
-# Start the server
-CMD ["npm", "start"]
+# Copy necessary files from builder
+COPY --from=builder /app/.next/standalone ./
+COPY --from=builder /app/public ./public
+COPY --from=builder /app/.next/static ./.next/static
+
+# Expose frontend port
+EXPOSE 3000
+
+# Start the server correctly for standalone mode
+CMD ["node", "server.js"]
